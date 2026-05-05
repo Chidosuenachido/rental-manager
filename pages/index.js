@@ -98,12 +98,29 @@ function TabCobrar({ properties, charges, notes, onRefresh }) {
   const propCharges = charges.filter(c => c.property_id === propSel)
   const pendientes = propCharges.filter(c => c.status !== 'paid')
   const propNotes = notes.filter(n => n.property_id === propSel).slice(0, 5)
+  const existingCharge = charges.find(c => c.property_id === propSel && c.month === mesSel && c.year === CUR_YEAR)
+  const isEditing = !!existingCharge
 
   async function markPaid(charge) {
     const { error } = await supabase.from('charges').update({ status: 'paid', paid_on: new Date().toISOString() }).eq('id', charge.id)
     if (error) { showAlert('Error', 'error'); return }
-    showAlert(`✅ ${charge.month} saldado`)
+    showAlert(`✅ ${monthES(charge.month)} saldado`)
     onRefresh()
+  }
+
+  async function deleteCharge(charge) {
+    if (!confirm(`¿Eliminar cobro de ${monthES(charge.month)} ${charge.year}?`)) return
+    const { error } = await supabase.from('charges').delete().eq('id', charge.id)
+    if (error) { showAlert('Error al eliminar', 'error'); return }
+    showAlert('Cobro eliminado'); onRefresh()
+  }
+
+  function loadChargeForEdit(charge) {
+    setMesSel(charge.month)
+    setRentaVal(charge.rent)
+    setSvcAmounts(Object.fromEntries(Object.entries(charge.services || {}).map(([k, v]) => [k, String(v)])))
+    setNota(charge.note || '')
+    showAlert(`📝 Editando cobro de ${monthES(charge.month)} — modifica y vuelve a publicar`, 'warning')
   }
 
   function handleReceipt(e) {
@@ -125,11 +142,9 @@ function TabCobrar({ properties, charges, notes, onRefresh }) {
 
   async function publicar() {
     if (!prop || !draftCharge || draftCharge.total === 0) { showAlert('Ingresa al menos un monto', 'error'); return }
-    const dup = charges.find(c => c.property_id === propSel && c.month === mesSel && c.year === CUR_YEAR)
-    if (dup) { showAlert(`Ya existe un cobro para ${monthES(mesSel)}. Elimínalo primero.`, 'error'); return }
     setSaving(true)
     try {
-      let receipt_url = null
+      let receipt_url = existingCharge?.receipt_url || null
       if (receipt) {
         const ext = receipt.name.split('.').pop()
         const path = `${propSel}/${mesSel}-${CUR_YEAR}-${Date.now()}.${ext}`
@@ -138,13 +153,29 @@ function TabCobrar({ properties, charges, notes, onRefresh }) {
         const { data: urlData } = supabase.storage.from('receipts').getPublicUrl(path)
         receipt_url = urlData.publicUrl
       }
-      const { error } = await supabase.from('charges').insert({
-        property_id: propSel, month: mesSel, year: CUR_YEAR,
-        rent: draftCharge.rent, services: draftCharge.services, total: draftCharge.total,
-        note: nota, receipt_url, status: 'pending', wa_sent: false
-      })
-      if (error) throw error
-      showAlert(`✅ Recibos de ${monthES(mesSel)} publicados con éxito`)
+
+      if (isEditing) {
+        // Merge new services into existing ones
+        const mergedServices = { ...existingCharge.services }
+        Object.entries(draftCharge.services).forEach(([k, v]) => { mergedServices[k] = v })
+        const newRent = draftCharge.rent > 0 ? draftCharge.rent : existingCharge.rent
+        const newTotal = newRent + Object.values(mergedServices).reduce((a, b) => a + b, 0)
+        const { error } = await supabase.from('charges').update({
+          rent: newRent, services: mergedServices, total: newTotal,
+          note: nota || existingCharge.note,
+          receipt_url: receipt_url
+        }).eq('id', existingCharge.id)
+        if (error) throw error
+        showAlert(`✅ Cobro de ${monthES(mesSel)} actualizado`)
+      } else {
+        const { error } = await supabase.from('charges').insert({
+          property_id: propSel, month: mesSel, year: CUR_YEAR,
+          rent: draftCharge.rent, services: draftCharge.services, total: draftCharge.total,
+          note: nota, receipt_url, status: 'pending', wa_sent: false
+        })
+        if (error) throw error
+        showAlert(`✅ Recibos de ${monthES(mesSel)} publicados con éxito`)
+      }
       setNota(''); setSvcAmounts({}); setReceipt(null); setReceiptPreview(null); setReceiptName('')
       onRefresh()
     } catch (e) { showAlert(e.message || 'Error', 'error') }
@@ -206,6 +237,12 @@ function TabCobrar({ properties, charges, notes, onRefresh }) {
                       <button className="btn-green btn btn-sm btn-full" onClick={() => markPaid(c)}>
                         Saldar {monthES(c.month)}
                       </button>
+                      <button className="btn btn-sm" onClick={() => loadChargeForEdit(c)} style={{ color: 'var(--accent)', borderColor: 'var(--accent)' }}>
+                        ✏️ Editar
+                      </button>
+                      <button className="btn btn-danger btn-sm" onClick={() => deleteCharge(c)}>
+                        🗑️
+                      </button>
                       <WaBtn href={waLink(prop.phone, buildReminderMsg(prop, c))} label="Recordatorio" small />
                       <WaBtn href={waLink(prop.phone, buildWaMessage(prop, c))} label="Reenviar" small />
                       {c.receipt_url && <a href={c.receipt_url} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: 'var(--accent)', padding: '4px 8px', border: '1px solid var(--border)', borderRadius: 6 }}>Ver comprobante</a>}
@@ -219,7 +256,11 @@ function TabCobrar({ properties, charges, notes, onRefresh }) {
 
           {/* Publish form */}
           <div className="card">
-            <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 16 }}>🚀 Generar Recibo del Mes:</div>
+            <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 4 }}>
+              {isEditing ? `✏️ Editando cobro: ${monthES(mesSel)} ${CUR_YEAR}` : '🚀 Generar Recibo del Mes:'}
+            </div>
+            {isEditing && <div style={{ fontSize: 12, color: 'var(--orange-text)', marginBottom: 14 }}>Los servicios que ingreses se agregarán o actualizarán en el cobro existente.</div>}
+            {!isEditing && <div style={{ marginBottom: 16 }}></div>}
 
             <div className="grid2" style={{ marginBottom: 14 }}>
               <div className="fgroup">
@@ -277,7 +318,7 @@ function TabCobrar({ properties, charges, notes, onRefresh }) {
 
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <button className="btn-primary btn btn-full" onClick={publicar} disabled={saving}>
-                {saving ? 'Publicando...' : '🚀 Publicar Todo al Inquilino'}
+                {saving ? 'Guardando...' : isEditing ? '💾 Actualizar Cobro' : '🚀 Publicar Todo al Inquilino'}
               </button>
               {draftCharge && draftCharge.total > 0 && (
                 <WaBtn href={waLink(prop.phone, buildWaMessage(prop, draftCharge))} label="Abrir WhatsApp" />
@@ -462,9 +503,16 @@ function TabConfig({ properties, onRefresh }) {
 }
 
 // ─── TAB 3: HISTORIAL ────────────────────────────────────────────────────────
-function TabHistorial({ properties, charges }) {
+function TabHistorial({ properties, charges, onRefresh }) {
   const [propFilter, setPropFilter] = useState('')
   const [yearFilter, setYearFilter] = useState(String(CUR_YEAR))
+  const [editCharge, setEditCharge] = useState(null)
+  const [editForm, setEditForm] = useState({})
+  const [saving, setSaving] = useState(false)
+  const [alert, setAlert] = useState(null)
+
+  function showAlert(msg, type = 'success') { setAlert({ msg, type }); setTimeout(() => setAlert(null), 3500) }
+
   const years = [...new Set([CUR_YEAR, ...charges.map(c => c.year)])].sort((a, b) => b - a)
   const filtered = charges
     .filter(c => c.year === parseInt(yearFilter) && (!propFilter || c.property_id === propFilter))
@@ -475,8 +523,44 @@ function TabHistorial({ properties, charges }) {
   const totalAll = filtered.reduce((a, c) => a + c.total, 0)
   const totalPaid = filtered.filter(c => c.status === 'paid').reduce((a, c) => a + c.total, 0)
 
+  function openEdit(c) {
+    setEditCharge(c)
+    setEditForm({
+      rent: c.rent,
+      note: c.note || '',
+      status: c.status,
+      services: { ...c.services }
+    })
+  }
+
+  async function saveEdit() {
+    const total = parseFloat(editForm.rent || 0) + Object.values(editForm.services || {}).reduce((a, b) => a + parseFloat(b || 0), 0)
+    setSaving(true)
+    const { error } = await supabase.from('charges').update({
+      rent: parseFloat(editForm.rent || 0),
+      services: Object.fromEntries(Object.entries(editForm.services || {}).map(([k, v]) => [k, parseFloat(v || 0)])),
+      total,
+      note: editForm.note,
+      status: editForm.status,
+      paid_on: editForm.status === 'paid' ? (editCharge.paid_on || new Date().toISOString()) : null
+    }).eq('id', editCharge.id)
+    setSaving(false)
+    if (error) { showAlert('Error al guardar', 'error'); return }
+    showAlert('✅ Cobro actualizado')
+    setEditCharge(null)
+    onRefresh()
+  }
+
+  async function delCharge(id) {
+    if (!confirm('¿Eliminar este cobro?')) return
+    const { error } = await supabase.from('charges').delete().eq('id', id)
+    if (error) { showAlert('Error', 'error'); return }
+    showAlert('Eliminado'); onRefresh()
+  }
+
   return (
     <div>
+      {alert && <div className={`alert alert-${alert.type}`}>{alert.msg}</div>}
       <div style={{ fontWeight: 600, fontSize: 16, marginBottom: 16 }}>📊 Historial de Pagos</div>
 
       <div className="grid4" style={{ marginBottom: 20 }}>
@@ -506,7 +590,7 @@ function TabHistorial({ properties, charges }) {
         <table>
           <thead>
             <tr>
-              {['Mes','Propiedad','Inquilino','Renta','Servicios','Total','Estado','Comprobante'].map(h => <th key={h}>{h}</th>)}
+              {['Mes','Propiedad','Inquilino','Renta','Servicios','Total','Estado','Comprobante',''].map(h => <th key={h}>{h}</th>)}
             </tr>
           </thead>
           <tbody>
@@ -524,17 +608,68 @@ function TabHistorial({ properties, charges }) {
                   <td style={{ fontWeight: 600 }}>{fmt(c.total)}</td>
                   <td><span className={`badge badge-${c.status}`}>{c.status === 'paid' ? 'Pagado' : 'Pendiente'}</span></td>
                   <td>{c.receipt_url ? <a href={c.receipt_url} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)', fontSize: 12 }}>Ver</a> : <span style={{ color: 'var(--border)' }}>—</span>}</td>
+                  <td>
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      <button className="btn btn-sm" onClick={() => openEdit(c)} style={{ color: 'var(--accent)', borderColor: 'var(--accent)', padding: '3px 8px' }}>✏️</button>
+                      <button className="btn btn-danger btn-sm" onClick={() => delCharge(c.id)} style={{ padding: '3px 8px' }}>🗑️</button>
+                    </div>
+                  </td>
                 </tr>
               )
             })}
           </tbody>
         </table>
       </div>
+
+      {/* Edit modal */}
+      {editCharge && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '1rem' }}
+          onClick={e => e.target === e.currentTarget && setEditCharge(null)}>
+          <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 16, width: '100%', maxWidth: 480, padding: '1.5rem', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <div style={{ fontWeight: 600, fontSize: 16 }}>✏️ Editar — {monthES(editCharge.month)} {editCharge.year}</div>
+              <button className="btn btn-sm" onClick={() => setEditCharge(null)}>Cerrar</button>
+            </div>
+            <div className="grid2" style={{ marginBottom: 12 }}>
+              <div className="fgroup">
+                <label>Renta ($)</label>
+                <input type="number" value={editForm.rent} onChange={e => setEditForm(f => ({ ...f, rent: e.target.value }))} />
+              </div>
+              <div className="fgroup">
+                <label>Estado</label>
+                <select value={editForm.status} onChange={e => setEditForm(f => ({ ...f, status: e.target.value }))}>
+                  <option value="pending">Pendiente</option>
+                  <option value="paid">Pagado</option>
+                </select>
+              </div>
+            </div>
+            {Object.keys(editForm.services || {}).length > 0 && (
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 8 }}>Servicios:</div>
+                <div className="grid2">
+                  {Object.entries(editForm.services).map(([k, v]) => (
+                    <div key={k} className="fgroup">
+                      <label>{k} ($)</label>
+                      <input type="number" value={v} onChange={e => setEditForm(f => ({ ...f, services: { ...f.services, [k]: e.target.value } }))} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="fgroup" style={{ marginBottom: 16 }}>
+              <label>Nota</label>
+              <textarea value={editForm.note} onChange={e => setEditForm(f => ({ ...f, note: e.target.value }))} />
+            </div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button className="btn" onClick={() => setEditCharge(null)}>Cancelar</button>
+              <button className="btn-primary btn" onClick={saveEdit} disabled={saving}>{saving ? 'Guardando...' : 'Guardar cambios'}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
-
-// ─── VISTA INQUILINO ─────────────────────────────────────────────────────────
 function TenantView({ propId, properties, charges }) {
   const prop = properties.find(p => p.id === propId)
   if (!prop) return (
@@ -662,7 +797,7 @@ export default function Home() {
             )}
             {tab === 0 && properties.length > 0 && <TabCobrar properties={properties} charges={charges} notes={notes} onRefresh={load} />}
             {tab === 1 && <TabConfig properties={properties} onRefresh={load} />}
-            {tab === 2 && <TabHistorial properties={properties} charges={charges} />}
+            {tab === 2 && <TabHistorial properties={properties} charges={charges} onRefresh={load} />}
           </>
         )}
       </div>
