@@ -101,7 +101,7 @@ function Login({ onLogin }) {
         {err && <div className="alert alert-error">{err}</div>}
         <div className="fgroup" style={{ marginBottom: 14 }}>
           <label>Contraseña</label>
-          <input type="password" value={pw} onChange={e => setPw(e.target.value)} onKeyDown={e => e.key === 'Enter' && submit()} autoFocus />
+          <input type="password" value={pw} onChange={e => setPw(e.target.value)} onKeyDown={e => e.key === 'Enter' && submit()} />
         </div>
         <button className="btn-primary btn-full btn" onClick={submit}>Ingresar al Sistema</button>
       </div>
@@ -110,11 +110,7 @@ function Login({ onLogin }) {
 }
 
 // ─── TAB 1: COBRAR ───────────────────────────────────────────────────────────
-function TabCobrar({ properties, charges, notes, onRefresh }) {
-  // FIX 1: propSel stored in ref so it survives re-renders without resetting
-  const [propSel, setPropSelState] = useState(properties[0]?.id || '')
-  const propSelRef = useRef(propSel)
-  function setPropSel(id) { propSelRef.current = id; setPropSelState(id) }
+function TabCobrar({ properties, charges, notes, onRefresh, propSel, setPropSel }) {
 
   const [mesSel, setMesSel] = useState(CUR_MONTH)
   const [rentaVal, setRentaVal] = useState(0)
@@ -132,8 +128,8 @@ function TabCobrar({ properties, charges, notes, onRefresh }) {
 
   const prop = properties.find(p => p.id === propSel)
 
-  // Only reset form when property CHANGES, not on every re-render
-  const prevPropSel = useRef(propSel)
+  // Reset form when property changes
+  const prevPropSel = useRef('')
   useEffect(() => {
     if (prevPropSel.current !== propSel && prop) {
       setRentaVal(prop.rent)
@@ -435,10 +431,7 @@ function TabCobrar({ properties, charges, notes, onRefresh }) {
                 <button className="btn-primary btn" onClick={guardarCobro} disabled={saving}>
                   {saving ? 'Guardando...' : isEditing ? '💾 Actualizar cobro' : '💾 Guardar cobro'}
                 </button>
-                {draftCharge && draftTotal > 0 && (
-                  <WaBtn href={waLink(prop.phone, buildWaMessage(prop, draftCharge))} label="Abrir WhatsApp" />
-                )}
-              </div>
+                </div>
               {receipt && (
                 <div className="alert alert-warning" style={{ marginTop: 10 }}>
                   📎 Recuerda adjuntar el comprobante manualmente en WhatsApp.
@@ -813,6 +806,7 @@ export default function Home() {
   const [notes, setNotes] = useState([])
   const [loading, setLoading] = useState(true)
   const [tenantId, setTenantId] = useState(null)
+  const [propSel, setPropSel] = useState('')
 
   useEffect(() => {
     if (router.isReady) {
@@ -829,6 +823,7 @@ export default function Home() {
       supabase.from('notes').select('*').order('created_at', { ascending: false })
     ])
     setProperties(props || []); setCharges(chgs || []); setNotes(nts || [])
+    if (!propSel && props?.length) setPropSel(props[0].id)
     setLoading(false)
   }, [])
 
@@ -864,7 +859,7 @@ export default function Home() {
         {loading ? <div className="empty">Cargando...</div> : (
           <>
             {tab === 0 && properties.length === 0 && <div className="alert alert-warning">⚠️ No hay propiedades. Ve a Configuración.</div>}
-            {tab === 0 && properties.length > 0 && <TabCobrar properties={properties} charges={charges} notes={notes} onRefresh={load} />}
+            {tab === 0 && properties.length > 0 && <TabCobrar properties={properties} charges={charges} notes={notes} onRefresh={load} propSel={propSel} setPropSel={setPropSel} />}
             {tab === 1 && <TabConfig properties={properties} onRefresh={load} />}
             {tab === 2 && <TabHistorial properties={properties} charges={charges} onRefresh={load} />}
           </>
