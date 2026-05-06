@@ -94,16 +94,26 @@ function Login({ onLogin }) {
     else setErr('Contraseña incorrecta')
   }
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
-      <div className="card" style={{ width: 340 }}>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: '1rem' }}>
+      <div className="card" style={{ width: '100%', maxWidth: 340 }}>
         <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 4 }}>👨‍💼 Centro de Control</h2>
         <p style={{ fontSize: 13, color: 'var(--text2)', marginBottom: 20 }}>Contraseña del Administrador</p>
         {err && <div className="alert alert-error">{err}</div>}
         <div className="fgroup" style={{ marginBottom: 14 }}>
           <label>Contraseña</label>
-          <input type="password" value={pw} onChange={e => setPw(e.target.value)} onKeyDown={e => e.key === 'Enter' && submit()} />
+          <input
+            type="text"
+            inputMode="text"
+            autoComplete="current-password"
+            value={pw}
+            onChange={e => setPw(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && submit()}
+            style={{ fontSize: 16, WebkitAppearance: 'none' }}
+          />
         </div>
-        <button className="btn-primary btn-full btn" onClick={submit}>Ingresar al Sistema</button>
+        <button className="btn-primary btn-full btn" onClick={submit} style={{ padding: '12px', fontSize: 16 }}>
+          Ingresar al Sistema
+        </button>
       </div>
     </div>
   )
