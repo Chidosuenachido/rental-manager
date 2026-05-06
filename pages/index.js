@@ -493,8 +493,6 @@ function TabCobrar({ properties, charges, notes, onRefresh, propSel, setPropSel 
             <button className="btn btn-danger btn-sm" onClick={() => deleteNota(n.id)} style={{ padding: '2px 7px', fontSize: 13, flexShrink: 0 }}>🗑️</button>
           </div>
         ))}
-              </div>
-            ))}
           </div>
         </div>
       </div>
