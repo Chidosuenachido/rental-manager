@@ -817,6 +817,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true)
   const [tenantId, setTenantId] = useState(null)
   const [propSel, setPropSel] = useState('')
+  const propSelRef = useRef('')
 
   useEffect(() => {
     if (router.isReady) {
@@ -824,6 +825,8 @@ export default function Home() {
       if (id) setTenantId(id)
     }
   }, [router.isReady, router.query])
+
+  useEffect(() => { propSelRef.current = propSel }, [propSel])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -833,7 +836,7 @@ export default function Home() {
       supabase.from('notes').select('*').order('created_at', { ascending: false })
     ])
     setProperties(props || []); setCharges(chgs || []); setNotes(nts || [])
-    if (!propSel && props?.length) setPropSel(props[0].id)
+    if (!propSelRef.current && props?.length) setPropSel(props[0].id)
     setLoading(false)
   }, [])
 
