@@ -129,3 +129,23 @@ tr:hover td { background: var(--bg3); }
   .grid2, .grid3, .grid4 { grid-template-columns: 1fr; }
   .two-col { flex-direction: column; }
 }
+
+/* ─── MOBILE (iPhone) ─── */
+@media (max-width: 768px) {
+  .two-col { flex-direction: column !important; }
+  .grid2, .grid3, .grid4 { grid-template-columns: 1fr !important; }
+  
+  nav > div { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  nav button { white-space: nowrap; font-size: 13px !important; padding: 12px 12px 10px !important; }
+  
+  .info-bar { font-size: 12px; flex-wrap: wrap; line-height: 1.8; }
+  
+  .card { padding: 1rem; }
+  
+  table { font-size: 12px; }
+  th, td { padding: 6px 8px; }
+  
+  input, select, textarea { font-size: 16px !important; } /* prevents iOS zoom on focus */
+  
+  .btn-wa { font-size: 13px; padding: 8px 12px; }
+}
