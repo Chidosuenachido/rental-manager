@@ -39,7 +39,9 @@ input, select, textarea {
   color: var(--text);
   outline: none;
   transition: border-color 0.15s;
+  font-size: 16px;
 }
+
 input:focus, select:focus, textarea:focus { border-color: var(--accent); }
 textarea { resize: vertical; min-height: 72px; }
 select option { background: var(--bg3); }
@@ -48,13 +50,29 @@ button { cursor: pointer; border-radius: 8px; font-weight: 500; transition: all 
 
 .btn { padding: 8px 16px; background: var(--bg3); border: 1px solid var(--border); color: var(--text); }
 .btn:hover { border-color: var(--accent); color: var(--accent); }
+
 .btn-primary { padding: 8px 16px; background: var(--accent); border: none; color: #fff; }
 .btn-primary:hover { opacity: 0.85; }
+
 .btn-danger { padding: 8px 16px; background: transparent; border: 1px solid var(--red); color: var(--red-text); }
 .btn-danger:hover { background: rgba(198,40,40,0.15); }
+
 .btn-green { padding: 8px 16px; background: var(--green); border: none; color: #fff; font-weight: 600; }
 .btn-green:hover { background: var(--green-light); }
-.btn-wa { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; background: var(--wa); border: none; color: #fff; border-radius: 8px; font-size: 13px; font-weight: 500; text-decoration: none; }
+
+.btn-wa {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  background: var(--wa);
+  border: none;
+  color: #fff;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+}
 .btn-wa:hover { opacity: 0.9; }
 .btn-sm { padding: 5px 12px; font-size: 12px; }
 .btn-full { width: 100%; }
@@ -120,32 +138,18 @@ tr:hover td { background: var(--bg3); }
 .expediente p { font-size: 13px; color: var(--text2); line-height: 1.8; }
 .expediente p b { color: var(--text); }
 
-/* Inquilino view */
+.two-col { display: flex; gap: 20px; }
+
 .tenant-page { max-width: 480px; margin: 0 auto; padding: 2rem 1rem; }
-.tenant-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; margin-bottom: 1rem; }
-.tenant-total { font-size: 36px; font-weight: 700; color: var(--text); margin: .5rem 0; }
 
-@media (max-width: 640px) {
-  .grid2, .grid3, .grid4 { grid-template-columns: 1fr; }
-  .two-col { flex-direction: column; }
-}
-
-/* ─── MOBILE (iPhone) ─── */
 @media (max-width: 768px) {
-  .two-col { flex-direction: column !important; }
-  .grid2, .grid3, .grid4 { grid-template-columns: 1fr !important; }
-  
-  nav > div { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  nav button { white-space: nowrap; font-size: 13px !important; padding: 12px 12px 10px !important; }
-  
-  .info-bar { font-size: 12px; flex-wrap: wrap; line-height: 1.8; }
-  
-  .card { padding: 1rem; }
-  
+  .two-col { flex-direction: column; }
+  .grid2, .grid3, .grid4 { grid-template-columns: 1fr; }
+  .card { padding: 0.875rem; }
+  nav button { white-space: nowrap; font-size: 12px; padding: 12px 10px 10px; }
+  .info-bar { font-size: 12px; line-height: 1.8; }
   table { font-size: 12px; }
-  th, td { padding: 6px 8px; }
-  
-  input, select, textarea { font-size: 16px !important; } /* prevents iOS zoom on focus */
-  
-  .btn-wa { font-size: 13px; padding: 8px 12px; }
+  th, td { padding: 6px 6px; }
+  .btn-wa { font-size: 12px; padding: 7px 10px; }
+  .metric .mval { font-size: 18px; }
 }
