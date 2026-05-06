@@ -485,9 +485,14 @@ function TabCobrar({ properties, charges, notes, onRefresh, propSel, setPropSel 
             <hr className="divider" />
             {propNotes.length === 0 && <div style={{ fontSize: 13, color: 'var(--text2)', textAlign: 'center', padding: '1rem 0' }}>Sin notas</div>}
             {[...propNotes].reverse().map(n => (
-              <div key={n.id} className="note-card">
-                <div className="note-date">📅 {new Date(n.created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
-                <div className="note-text" style={{ marginTop: 4 }}>{n.text}</div>
+             <div key={n.id} className="note-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+              <div style={{ flex: 1 }}>
+               <div className="note-date">📅 {new Date(n.created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
+               <div className="note-text" style={{ marginTop: 4 }}>{n.text}</div>
+              </div>
+            <button className="btn btn-danger btn-sm" onClick={() => deleteNota(n.id)} style={{ padding: '2px 7px', fontSize: 13, flexShrink: 0 }}>🗑️</button>
+          </div>
+        ))}
               </div>
             ))}
           </div>
@@ -499,6 +504,7 @@ function TabCobrar({ properties, charges, notes, onRefresh, propSel, setPropSel 
 
 // ─── TAB 2: CONFIGURACIÓN ────────────────────────────────────────────────────
 function TabConfig({ properties, onRefresh }) {
+  const [showNewForm, setShowNewForm] = useState(false)
   const [form, setForm] = useState({ name: '', address: '', tenant: '', phone: '', rent: '', pay_day: '5', services: '' })
   const [editId, setEditId] = useState(null)
   const [saving, setSaving] = useState(false)
@@ -506,7 +512,11 @@ function TabConfig({ properties, onRefresh }) {
   const [propExp, setPropExp] = useState(properties[0]?.id || '')
 
   function showAlert(msg, type = 'success') { setAlert({ msg, type }); setTimeout(() => setAlert(null), 3500) }
-  function reset() { setForm({ name: '', address: '', tenant: '', phone: '', rent: '', pay_day: '5', services: '' }); setEditId(null) }
+  function reset() {
+  setForm({ name: '', address: '', tenant: '', phone: '', rent: '', pay_day: '5', services: '' })
+  setEditId(null)
+  setShowNewForm(false)  // ← AGREGAR
+}
 
   async function save() {
     if (!form.name || !form.tenant) { showAlert('Nombre e Inquilino son obligatorios', 'error'); return }
@@ -539,24 +549,31 @@ function TabConfig({ properties, onRefresh }) {
   return (
     <div style={{ display: 'flex', gap: 20 }} className="two-col">
       <div style={{ flex: 1 }}>
-        {alert && <div className={`alert alert-${alert.type}`}>{alert.msg}</div>}
-        <div className="card">
-          <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 16 }}>{editId ? 'Editar Propiedad' : 'Nueva Propiedad'}</div>
-          <div className="fgroup" style={{ marginBottom: 10 }}><label>ID Propiedad</label><input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Ej: Depto 101" /></div>
-          <div className="fgroup" style={{ marginBottom: 10 }}><label>Dirección completa</label><input value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} /></div>
-          <div className="fgroup" style={{ marginBottom: 10 }}><label>Nombre del Inquilino</label><input value={form.tenant} onChange={e => setForm(f => ({ ...f, tenant: e.target.value }))} /></div>
-          <div className="fgroup" style={{ marginBottom: 10 }}><label>Teléfono (con código de país)</label><input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="521551234567" /></div>
-          <div className="grid2" style={{ marginBottom: 10 }}>
-            <div className="fgroup"><label>Renta Mensual ($)</label><input type="number" min="0" step="500" value={form.rent} onChange={e => setForm(f => ({ ...f, rent: e.target.value }))} /></div>
-            <div className="fgroup"><label>Día límite de pago</label><input type="number" min="1" max="31" value={form.pay_day} onChange={e => setForm(f => ({ ...f, pay_day: e.target.value }))} /></div>
-          </div>
-          <div className="fgroup" style={{ marginBottom: 16 }}><label>Servicios (separados por coma: Luz, Agua, Gas)</label><textarea value={form.services} onChange={e => setForm(f => ({ ...f, services: e.target.value }))} placeholder="Luz, Agua, Gas" style={{ minHeight: 48 }} /></div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button className="btn" onClick={reset}>Cancelar</button>
-            <button className="btn-primary btn btn-full" onClick={save} disabled={saving}>{saving ? 'Guardando...' : 'Dar de Alta'}</button>
-          </div>
-        </div>
+  {alert && <div className={`alert alert-${alert.type}`}>{alert.msg}</div>}
+
+  {!editId && !showNewForm ? (
+    <button className="btn-primary btn btn-full" onClick={() => setShowNewForm(true)} style={{ marginBottom: 16 }}>
+      + Nueva Propiedad
+    </button>
+  ) : (
+    <div className="card">
+      <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 16 }}>{editId ? '✏️ Editar Propiedad' : '🏠 Nueva Propiedad'}</div>
+      <div className="fgroup" style={{ marginBottom: 10 }}><label>ID Propiedad</label><input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Ej: Depto 101" /></div>
+      <div className="fgroup" style={{ marginBottom: 10 }}><label>Dirección completa</label><input value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} /></div>
+      <div className="fgroup" style={{ marginBottom: 10 }}><label>Nombre del Inquilino</label><input value={form.tenant} onChange={e => setForm(f => ({ ...f, tenant: e.target.value }))} /></div>
+      <div className="fgroup" style={{ marginBottom: 10 }}><label>Teléfono (con código de país)</label><input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="521551234567" /></div>
+      <div className="grid2" style={{ marginBottom: 10 }}>
+        <div className="fgroup"><label>Renta Mensual ($)</label><input type="number" min="0" step="500" value={form.rent} onChange={e => setForm(f => ({ ...f, rent: e.target.value }))} /></div>
+        <div className="fgroup"><label>Día límite de pago</label><input type="number" min="1" max="31" value={form.pay_day} onChange={e => setForm(f => ({ ...f, pay_day: e.target.value }))} /></div>
       </div>
+      <div className="fgroup" style={{ marginBottom: 16 }}><label>Servicios (separados por coma: Luz, Agua, Gas)</label><textarea value={form.services} onChange={e => setForm(f => ({ ...f, services: e.target.value }))} placeholder="Luz, Agua, Gas" style={{ minHeight: 48 }} /></div>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button className="btn" onClick={reset}>Cancelar</button>
+        <button className="btn-primary btn btn-full" onClick={save} disabled={saving}>{saving ? 'Guardando...' : editId ? 'Guardar cambios' : 'Dar de Alta'}</button>
+      </div>
+    </div>
+  )}
+</div>
 
       <div style={{ flex: 2 }}>
         <div className="card">
@@ -849,7 +866,7 @@ export default function Home() {
 
   if (!authed) return <Login onLogin={() => setAuthed(true)} />
 
-  const tabs = ['💰 Principal (Cobrar)', '🏠 Configuración', '📊 Historial']
+  const tabs = ['💰 Principal (Cobrar)', '📊 Historial', '🏠 Configuración']
 
   return (
     <div style={{ minHeight: '100vh' }}>
@@ -873,8 +890,8 @@ export default function Home() {
           <>
             {tab === 0 && properties.length === 0 && <div className="alert alert-warning">⚠️ No hay propiedades. Ve a Configuración.</div>}
             {tab === 0 && properties.length > 0 && <TabCobrar properties={properties} charges={charges} notes={notes} onRefresh={load} propSel={propSel} setPropSel={setPropSel} />}
-            {tab === 1 && <TabConfig properties={properties} onRefresh={load} />}
-            {tab === 2 && <TabHistorial properties={properties} charges={charges} onRefresh={load} />}
+            {tab === 1 && <TabHistorial properties={properties} charges={charges} notes={notes} onRefresh={load} />}
+            {tab === 2 && <TabConfig properties={properties} onRefresh={load} />}
           </>
         )}
       </div>
