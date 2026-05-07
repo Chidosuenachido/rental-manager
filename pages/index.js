@@ -138,7 +138,6 @@ function TabCobrar({ properties, charges, notes, onRefresh, propSel, setPropSel 
 
   const prop = properties.find(p => p.id === propSel)
 
-  // Reset form when property changes
   const prevPropSel = useRef('')
   useEffect(() => {
     if (prevPropSel.current !== propSel && prop) {
@@ -159,7 +158,6 @@ function TabCobrar({ properties, charges, notes, onRefresh, propSel, setPropSel 
   const propCharges = charges.filter(c => c.property_id === propSel)
   const curMonthCharge = propCharges.find(c => c.month === CUR_MONTH && c.year === CUR_YEAR)
   const pendientes = propCharges.filter(c => c.status !== 'paid')
-  const pagados = propCharges.filter(c => c.status === 'paid')
   const propNotes = notes.filter(n => n.property_id === propSel)
 
   const isEditing = !!curMonthCharge
@@ -178,6 +176,13 @@ function TabCobrar({ properties, charges, notes, onRefresh, propSel, setPropSel 
     showAlert('Cobro eliminado'); onRefresh()
   }
 
+  async function deleteNota(id) {
+    if (!confirm('¿Eliminar esta nota?')) return
+    const { error } = await supabase.from('notes').delete().eq('id', id)
+    if (error) { showAlert('Error al eliminar nota', 'error'); return }
+    showAlert('Nota eliminada'); onRefresh()
+  }
+
   function handleReceipt(e) {
     const file = e.target.files[0]; if (!file) return
     setReceipt(file); setReceiptName(file.name)
@@ -188,7 +193,6 @@ function TabCobrar({ properties, charges, notes, onRefresh, propSel, setPropSel 
     } else { setReceiptPreview(null) }
   }
 
-  // FIX 4: show existing service amounts as placeholders when editing
   const svcPlaceholders = curMonthCharge?.services || {}
 
   const draftServices = Object.fromEntries(
@@ -257,7 +261,6 @@ function TabCobrar({ properties, charges, notes, onRefresh, propSel, setPropSel 
     <div>
       {alert && <div className={`alert alert-${alert.type}`}>{alert.msg}</div>}
 
-      {/* FIX 1: Property selector */}
       <div style={{ marginBottom: 16 }}>
         <div className="fgroup">
           <label>Selecciona Propiedad:</label>
@@ -267,7 +270,6 @@ function TabCobrar({ properties, charges, notes, onRefresh, propSel, setPropSel 
         </div>
       </div>
 
-      {/* Info bar with days to payment */}
       <div className="info-bar">
         📅 <b>Hoy:</b> {now.getDate()} de {CUR_MONTH_ES} &nbsp;|&nbsp;
         📌 <b>Día de pago:</b> {prop.pay_day} &nbsp;
@@ -286,14 +288,12 @@ function TabCobrar({ properties, charges, notes, onRefresh, propSel, setPropSel 
         {/* LEFT COLUMN */}
         <div style={{ flex: 2 }}>
 
-          {/* FIX 2: Main status card — first thing you see */}
           <div className="card" style={{ marginBottom: 16 }}>
             <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 14 }}>
               Estado del mes — {CUR_MONTH_ES} {CUR_YEAR}
             </div>
 
             {!curMonthCharge ? (
-              /* Not billed yet */
               <div style={{ textAlign: 'center', padding: '1rem 0' }}>
                 <div style={{ fontSize: 32, marginBottom: 8 }}>📋</div>
                 <div style={{ fontWeight: 600, color: 'var(--text2)', marginBottom: 12 }}>Sin cobro generado este mes</div>
@@ -302,7 +302,6 @@ function TabCobrar({ properties, charges, notes, onRefresh, propSel, setPropSel 
                 </button>
               </div>
             ) : curMonthCharge.status === 'paid' ? (
-              /* PAID */
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
                   <div style={{ fontSize: 32 }}>✅</div>
@@ -318,7 +317,6 @@ function TabCobrar({ properties, charges, notes, onRefresh, propSel, setPropSel 
                     <div style={{ fontWeight: 700, fontSize: 20 }}>{fmt(curMonthCharge.total)}</div>
                   </div>
                 </div>
-                {/* Breakdown */}
                 <div style={{ background: 'var(--bg3)', borderRadius: 8, padding: '10px 14px', marginBottom: 12 }}>
                   {curMonthCharge.rent > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '3px 0' }}><span style={{ color: 'var(--text2)' }}>🏠 Renta</span><span>{fmt(curMonthCharge.rent)}</span></div>}
                   {Object.entries(curMonthCharge.services || {}).map(([k, v]) => v > 0 && (
@@ -333,7 +331,6 @@ function TabCobrar({ properties, charges, notes, onRefresh, propSel, setPropSel 
                 </div>
               </div>
             ) : (
-              /* PENDING */
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
                   <div style={{ fontSize: 32 }}>⏳</div>
@@ -347,7 +344,6 @@ function TabCobrar({ properties, charges, notes, onRefresh, propSel, setPropSel 
                     <div style={{ fontWeight: 700, fontSize: 20 }}>{fmt(curMonthCharge.total)}</div>
                   </div>
                 </div>
-                {/* Breakdown */}
                 <div style={{ background: 'var(--bg3)', borderRadius: 8, padding: '10px 14px', marginBottom: 12 }}>
                   {curMonthCharge.rent > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '3px 0' }}><span style={{ color: 'var(--text2)' }}>🏠 Renta</span><span>{fmt(curMonthCharge.rent)}</span></div>}
                   {Object.entries(curMonthCharge.services || {}).map(([k, v]) => v > 0 && (
@@ -355,7 +351,6 @@ function TabCobrar({ properties, charges, notes, onRefresh, propSel, setPropSel 
                   ))}
                   {curMonthCharge.note && <div style={{ fontSize: 12, color: 'var(--text2)', fontStyle: 'italic', marginTop: 6 }}>"{curMonthCharge.note}"</div>}
                 </div>
-                {/* FIX 2: Single WhatsApp button */}
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   <button className="btn-green btn" onClick={() => markPaid(curMonthCharge)}>✅ Marcar pagado</button>
                   <WaBtn href={waLink(prop.phone, buildWaMessage(prop, curMonthCharge))} label="Enviar WhatsApp" />
@@ -367,7 +362,6 @@ function TabCobrar({ properties, charges, notes, onRefresh, propSel, setPropSel 
             )}
           </div>
 
-          {/* FIX 4: Service form — shows existing values as placeholder */}
           {showServiceForm && (
             <div className="card" style={{ marginBottom: 16 }}>
               <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 4 }}>
@@ -441,7 +435,7 @@ function TabCobrar({ properties, charges, notes, onRefresh, propSel, setPropSel 
                 <button className="btn-primary btn" onClick={guardarCobro} disabled={saving}>
                   {saving ? 'Guardando...' : isEditing ? '💾 Actualizar cobro' : '💾 Guardar cobro'}
                 </button>
-                </div>
+              </div>
               {receipt && (
                 <div className="alert alert-warning" style={{ marginTop: 10 }}>
                   📎 Recuerda adjuntar el comprobante manualmente en WhatsApp.
@@ -450,7 +444,6 @@ function TabCobrar({ properties, charges, notes, onRefresh, propSel, setPropSel 
             </div>
           )}
 
-          {/* Other pending charges (not current month) */}
           {pendientes.filter(c => !(c.month === CUR_MONTH && c.year === CUR_YEAR)).length > 0 && (
             <div className="card" style={{ marginBottom: 16 }}>
               <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12, color: 'var(--orange-text)' }}>⏳ Meses anteriores pendientes</div>
@@ -485,14 +478,14 @@ function TabCobrar({ properties, charges, notes, onRefresh, propSel, setPropSel 
             <hr className="divider" />
             {propNotes.length === 0 && <div style={{ fontSize: 13, color: 'var(--text2)', textAlign: 'center', padding: '1rem 0' }}>Sin notas</div>}
             {[...propNotes].reverse().map(n => (
-             <div key={n.id} className="note-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-              <div style={{ flex: 1 }}>
-               <div className="note-date">📅 {new Date(n.created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
-               <div className="note-text" style={{ marginTop: 4 }}>{n.text}</div>
+              <div key={n.id} className="note-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                <div style={{ flex: 1 }}>
+                  <div className="note-date">📅 {new Date(n.created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
+                  <div className="note-text" style={{ marginTop: 4 }}>{n.text}</div>
+                </div>
+                <button className="btn btn-danger btn-sm" onClick={() => deleteNota(n.id)} style={{ padding: '2px 7px', fontSize: 13, flexShrink: 0 }}>🗑️</button>
               </div>
-            <button className="btn btn-danger btn-sm" onClick={() => deleteNota(n.id)} style={{ padding: '2px 7px', fontSize: 13, flexShrink: 0 }}>🗑️</button>
-          </div>
-        ))}
+            ))}
           </div>
         </div>
       </div>
@@ -500,7 +493,358 @@ function TabCobrar({ properties, charges, notes, onRefresh, propSel, setPropSel 
   )
 }
 
-// ─── TAB 2: CONFIGURACIÓN ────────────────────────────────────────────────────
+// ─── TAB 2: HISTORIAL ────────────────────────────────────────────────────────
+function TabHistorial({ properties, charges, notes, onRefresh }) {
+  const [propFilter, setPropFilter] = useState('all')
+  const [monthIdx, setMonthIdx] = useState(now.getMonth())
+  const [yearFilter, setYearFilter] = useState(CUR_YEAR)
+  const [editCharge, setEditCharge] = useState(null)
+  const [editForm, setEditForm] = useState({})
+  const [saving, setSaving] = useState(false)
+  const [alert, setAlert] = useState(null)
+  const [showAddForm, setShowAddForm] = useState(false)
+  const [addProp, setAddProp] = useState(properties[0]?.id || '')
+  const [addForm, setAddForm] = useState({ rent: '', services: {}, note: '', status: 'pending', paid_on: '' })
+
+  function showAlert(msg, type = 'success') { setAlert({ msg, type }); setTimeout(() => setAlert(null), 3500) }
+
+  function prevMonth() {
+    if (monthIdx === 0) { setMonthIdx(11); setYearFilter(y => y - 1) }
+    else setMonthIdx(i => i - 1)
+  }
+  function nextMonth() {
+    if (monthIdx === 11) { setMonthIdx(0); setYearFilter(y => y + 1) }
+    else setMonthIdx(i => i + 1)
+  }
+
+  const curMonthName = MONTHS[monthIdx]
+  const curMonthES = MONTHS_ES[monthIdx]
+
+  const monthCharges = charges.filter(c =>
+    c.month === curMonthName && c.year === yearFilter &&
+    (propFilter === 'all' || c.property_id === propFilter)
+  )
+
+  const monthStart = new Date(yearFilter, monthIdx, 1)
+  const monthEnd = new Date(yearFilter, monthIdx + 1, 0, 23, 59, 59)
+  const monthNotes = notes.filter(n => {
+    const d = new Date(n.created_at)
+    return d >= monthStart && d <= monthEnd &&
+      (propFilter === 'all' || n.property_id === propFilter)
+  })
+
+  const totalCobrado = monthCharges.reduce((a, c) => a + c.total, 0)
+  const totalPagado = monthCharges.filter(c => c.status === 'paid').reduce((a, c) => a + c.total, 0)
+  const totalPendiente = totalCobrado - totalPagado
+
+  function openEdit(c) {
+    setEditCharge(c)
+    setEditForm({
+      rent: c.rent, note: c.note || '', status: c.status,
+      services: { ...c.services },
+      paid_on: c.paid_on ? c.paid_on.split('T')[0] : ''
+    })
+  }
+
+  async function saveEdit() {
+    const total = parseFloat(editForm.rent || 0) + Object.values(editForm.services || {}).reduce((a, b) => a + parseFloat(b || 0), 0)
+    setSaving(true)
+    const { error } = await supabase.from('charges').update({
+      rent: parseFloat(editForm.rent || 0),
+      services: Object.fromEntries(Object.entries(editForm.services || {}).map(([k, v]) => [k, parseFloat(v || 0)])),
+      total, note: editForm.note, status: editForm.status,
+      paid_on: editForm.status === 'paid'
+        ? (editForm.paid_on ? new Date(editForm.paid_on).toISOString() : (editCharge.paid_on || new Date().toISOString()))
+        : null
+    }).eq('id', editCharge.id)
+    setSaving(false)
+    if (error) { showAlert('Error al guardar', 'error'); return }
+    showAlert('✅ Cobro actualizado'); setEditCharge(null); onRefresh()
+  }
+
+  async function delCharge(id) {
+    if (!confirm('¿Eliminar este cobro?')) return
+    const { error } = await supabase.from('charges').delete().eq('id', id)
+    if (error) { showAlert('Error', 'error'); return }
+    showAlert('Eliminado'); onRefresh()
+  }
+
+  function initAddServices(propId) {
+    const p = properties.find(x => x.id === propId)
+    const svcs = Object.fromEntries((p?.services || []).map(s => [s, '']))
+    setAddForm(f => ({ ...f, services: svcs }))
+  }
+
+  async function saveAdd() {
+    const p = properties.find(x => x.id === addProp)
+    if (!p) return
+    const services = Object.fromEntries(
+      Object.entries(addForm.services).map(([k, v]) => [k, parseFloat(v || 0)]).filter(([, v]) => v > 0)
+    )
+    const rent = parseFloat(addForm.rent || 0)
+    const total = rent + Object.values(services).reduce((a, b) => a + b, 0)
+    if (rent === 0 && total === 0) { showAlert('Ingresa al menos un monto', 'error'); return }
+    setSaving(true)
+    const { error } = await supabase.from('charges').insert({
+      property_id: addProp, month: curMonthName, year: yearFilter,
+      rent, services, total, note: addForm.note,
+      status: addForm.status,
+      paid_on: addForm.status === 'paid'
+        ? (addForm.paid_on ? new Date(addForm.paid_on).toISOString() : new Date().toISOString())
+        : null,
+      wa_sent: false
+    })
+    setSaving(false)
+    if (error) { showAlert(error.message || 'Error', 'error'); return }
+    showAlert(`✅ Cobro de ${curMonthES} ${yearFilter} agregado`)
+    setShowAddForm(false)
+    setAddForm({ rent: '', services: {}, note: '', status: 'pending', paid_on: '' })
+    onRefresh()
+  }
+
+  const selectedProp = propFilter !== 'all' ? properties.find(p => p.id === propFilter) : null
+
+  return (
+    <div>
+      {alert && <div className={`alert alert-${alert.type}`}>{alert.msg}</div>}
+
+      {/* Navegador de mes */}
+      <div className="card" style={{ marginBottom: 16 }}>
+        <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 6 }}>Mostrando</div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <button className="btn" onClick={prevMonth} style={{ fontSize: 20, padding: '4px 14px', lineHeight: 1 }}>‹</button>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 18, fontWeight: 600 }}>{curMonthES} {yearFilter}</div>
+            {selectedProp && (
+              <div style={{ fontSize: 12, color: 'var(--text2)', marginTop: 2 }}>
+                {selectedProp.name} · {selectedProp.tenant}
+              </div>
+            )}
+          </div>
+          <button className="btn" onClick={nextMonth} style={{ fontSize: 20, padding: '4px 14px', lineHeight: 1 }}>›</button>
+        </div>
+      </div>
+
+      {/* Filtro de propiedad */}
+      <div className="fgroup" style={{ marginBottom: 16 }}>
+        <label>Propiedad:</label>
+        <select value={propFilter} onChange={e => setPropFilter(e.target.value)}>
+          <option value="all">Todas las propiedades</option>
+          {properties.map(p => <option key={p.id} value={p.id}>{p.name} — {p.tenant}</option>)}
+        </select>
+      </div>
+
+      {/* Métricas */}
+      <div className="grid3" style={{ marginBottom: 16 }}>
+        <div className="metric">
+          <div className="mlabel">Total cobrado</div>
+          <div className="mval">{fmt(totalCobrado)}</div>
+        </div>
+        <div className="metric">
+          <div className="mlabel">Pagado</div>
+          <div className="mval" style={{ color: 'var(--green-text)' }}>{fmt(totalPagado)}</div>
+        </div>
+        <div className="metric">
+          <div className="mlabel">Pendiente</div>
+          <div className="mval" style={{ color: totalPendiente > 0 ? 'var(--orange-text)' : 'var(--text2)' }}>{fmt(totalPendiente)}</div>
+        </div>
+      </div>
+
+      {/* Botón agregar cobro */}
+      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'flex-end' }}>
+        <button className="btn-primary btn" onClick={() => {
+          setShowAddForm(v => !v)
+          const defaultProp = propFilter !== 'all' ? propFilter : (properties[0]?.id || '')
+          setAddProp(defaultProp)
+          initAddServices(defaultProp)
+        }}>
+          {showAddForm ? 'Cancelar' : '+ Agregar cobro'}
+        </button>
+      </div>
+
+      {/* Formulario agregar cobro */}
+      {showAddForm && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 14 }}>➕ Nuevo cobro — {curMonthES} {yearFilter}</div>
+          <div className="fgroup" style={{ marginBottom: 12 }}>
+            <label>Propiedad</label>
+            <select value={addProp} onChange={e => { setAddProp(e.target.value); initAddServices(e.target.value) }}>
+              {properties.map(p => <option key={p.id} value={p.id}>{p.name} — {p.tenant}</option>)}
+            </select>
+          </div>
+          <div className="grid2" style={{ marginBottom: 12 }}>
+            <div className="fgroup">
+              <label>Renta ($)</label>
+              <input type="number" value={addForm.rent} onChange={e => setAddForm(f => ({ ...f, rent: e.target.value }))} step="100" />
+            </div>
+            <div className="fgroup">
+              <label>Estado</label>
+              <select value={addForm.status} onChange={e => setAddForm(f => ({ ...f, status: e.target.value }))}>
+                <option value="pending">Pendiente</option>
+                <option value="paid">Pagado</option>
+              </select>
+            </div>
+          </div>
+          {addForm.status === 'paid' && (
+            <div className="fgroup" style={{ marginBottom: 12 }}>
+              <label>Fecha de pago</label>
+              <input type="date" value={addForm.paid_on} onChange={e => setAddForm(f => ({ ...f, paid_on: e.target.value }))} />
+            </div>
+          )}
+          {Object.keys(addForm.services).length > 0 && (
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 8 }}>Servicios variables:</div>
+              <div className="grid2">
+                {Object.entries(addForm.services).map(([k, v]) => (
+                  <div key={k} className="fgroup">
+                    <label>{k} ($)</label>
+                    <input type="number" value={v} onChange={e => setAddForm(f => ({ ...f, services: { ...f.services, [k]: e.target.value } }))} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="fgroup" style={{ marginBottom: 14 }}>
+            <label>Nota</label>
+            <textarea value={addForm.note} onChange={e => setAddForm(f => ({ ...f, note: e.target.value }))} />
+          </div>
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <button className="btn" onClick={() => setShowAddForm(false)}>Cancelar</button>
+            <button className="btn-primary btn" onClick={saveAdd} disabled={saving}>{saving ? 'Guardando...' : 'Guardar cobro'}</button>
+          </div>
+        </div>
+      )}
+
+      {/* Cards de cobros del mes */}
+      {monthCharges.length === 0 ? (
+        <div className="empty">Sin cobros en {curMonthES} {yearFilter}{propFilter !== 'all' ? ' para esta propiedad' : ''}.</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
+          {monthCharges.map(c => {
+            const p = properties.find(x => x.id === c.property_id)
+            return (
+              <div key={c.id} className="card" style={{ borderLeft: `4px solid ${c.status === 'paid' ? 'var(--green)' : 'var(--orange)'}` }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: 15 }}>{p?.name || '—'}</div>
+                    <div style={{ fontSize: 12, color: 'var(--text2)' }}>{p?.tenant || '—'}</div>
+                  </div>
+                  <span className={`badge badge-${c.status}`}>{c.status === 'paid' ? 'Pagado' : 'Pendiente'}</span>
+                </div>
+                <div style={{ background: 'var(--bg3)', borderRadius: 8, padding: '8px 12px', marginBottom: 10 }}>
+                  {c.rent > 0 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '3px 0' }}>
+                      <span style={{ color: 'var(--text2)' }}>🏠 Renta</span><span>{fmt(c.rent)}</span>
+                    </div>
+                  )}
+                  {Object.entries(c.services || {}).filter(([, v]) => v > 0).map(([k, v]) => (
+                    <div key={k} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '3px 0' }}>
+                      <span style={{ color: 'var(--text2)' }}>📄 {k}</span><span>{fmt(v)}</span>
+                    </div>
+                  ))}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, fontWeight: 600, borderTop: '1px solid var(--border)', marginTop: 4, paddingTop: 4 }}>
+                    <span>Total</span><span>{fmt(c.total)}</span>
+                  </div>
+                </div>
+                {c.status === 'paid' && c.paid_on && (
+                  <div style={{ fontSize: 12, color: 'var(--green-text)', marginBottom: 8 }}>
+                    ✅ Pagado el {new Date(c.paid_on).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })}
+                  </div>
+                )}
+                {c.note && (
+                  <div style={{ fontSize: 12, color: 'var(--text2)', fontStyle: 'italic', marginBottom: 8 }}>"{c.note}"</div>
+                )}
+                {c.receipt_url && (
+                  <div style={{ marginBottom: 8 }}>
+                    <a href={c.receipt_url} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: 'var(--accent)' }}>Ver comprobante</a>
+                  </div>
+                )}
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button className="btn btn-sm" onClick={() => openEdit(c)} style={{ color: 'var(--accent)', borderColor: 'var(--accent)' }}>✏️ Editar</button>
+                  <button className="btn btn-danger btn-sm" onClick={() => delCharge(c.id)}>🗑️</button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Notas del mes */}
+      {monthNotes.length > 0 && (
+        <div className="card">
+          <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12 }}>📝 Notas de {curMonthES} {yearFilter}</div>
+          {monthNotes.map(n => {
+            const p = properties.find(x => x.id === n.property_id)
+            return (
+              <div key={n.id} className="note-card">
+                <div className="note-date">
+                  {p && propFilter === 'all' && <span style={{ color: 'var(--accent)' }}>{p.name} · </span>}
+                  📅 {new Date(n.created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
+                </div>
+                <div className="note-text" style={{ marginTop: 4 }}>{n.text}</div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Modal editar cobro */}
+      {editCharge && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '1rem' }}
+          onClick={e => e.target === e.currentTarget && setEditCharge(null)}>
+          <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 16, width: '100%', maxWidth: 480, padding: '1.5rem', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <div style={{ fontWeight: 600, fontSize: 16 }}>✏️ Editar — {monthES(editCharge.month)} {editCharge.year}</div>
+              <button className="btn btn-sm" onClick={() => setEditCharge(null)}>Cerrar</button>
+            </div>
+            <div className="grid2" style={{ marginBottom: 12 }}>
+              <div className="fgroup">
+                <label>Renta ($)</label>
+                <input type="number" value={editForm.rent} onChange={e => setEditForm(f => ({ ...f, rent: e.target.value }))} />
+              </div>
+              <div className="fgroup">
+                <label>Estado</label>
+                <select value={editForm.status} onChange={e => setEditForm(f => ({ ...f, status: e.target.value }))}>
+                  <option value="pending">Pendiente</option>
+                  <option value="paid">Pagado</option>
+                </select>
+              </div>
+            </div>
+            {editForm.status === 'paid' && (
+              <div className="fgroup" style={{ marginBottom: 12 }}>
+                <label>Fecha de pago</label>
+                <input type="date" value={editForm.paid_on} onChange={e => setEditForm(f => ({ ...f, paid_on: e.target.value }))} />
+              </div>
+            )}
+            {Object.keys(editForm.services || {}).length > 0 && (
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 8 }}>Servicios:</div>
+                <div className="grid2">
+                  {Object.entries(editForm.services).map(([k, v]) => (
+                    <div key={k} className="fgroup">
+                      <label>{k} ($)</label>
+                      <input type="number" value={v} onChange={e => setEditForm(f => ({ ...f, services: { ...f.services, [k]: e.target.value } }))} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="fgroup" style={{ marginBottom: 16 }}>
+              <label>Nota</label>
+              <textarea value={editForm.note} onChange={e => setEditForm(f => ({ ...f, note: e.target.value }))} />
+            </div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button className="btn" onClick={() => setEditCharge(null)}>Cancelar</button>
+              <button className="btn-primary btn" onClick={saveEdit} disabled={saving}>{saving ? 'Guardando...' : 'Guardar cambios'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── TAB 3: CONFIGURACIÓN ────────────────────────────────────────────────────
 function TabConfig({ properties, onRefresh }) {
   const [showNewForm, setShowNewForm] = useState(false)
   const [form, setForm] = useState({ name: '', address: '', tenant: '', phone: '', rent: '', pay_day: '5', services: '' })
@@ -511,10 +855,10 @@ function TabConfig({ properties, onRefresh }) {
 
   function showAlert(msg, type = 'success') { setAlert({ msg, type }); setTimeout(() => setAlert(null), 3500) }
   function reset() {
-  setForm({ name: '', address: '', tenant: '', phone: '', rent: '', pay_day: '5', services: '' })
-  setEditId(null)
-  setShowNewForm(false)  // ← AGREGAR
-}
+    setForm({ name: '', address: '', tenant: '', phone: '', rent: '', pay_day: '5', services: '' })
+    setEditId(null)
+    setShowNewForm(false)
+  }
 
   async function save() {
     if (!form.name || !form.tenant) { showAlert('Nombre e Inquilino son obligatorios', 'error'); return }
@@ -538,6 +882,7 @@ function TabConfig({ properties, onRefresh }) {
 
   function edit(p) {
     setEditId(p.id)
+    setShowNewForm(true)
     setForm({ name: p.name, address: p.address, tenant: p.tenant || '', phone: p.phone || '', rent: String(p.rent), pay_day: String(p.pay_day), services: (p.services || []).join(', ') })
   }
 
@@ -547,31 +892,31 @@ function TabConfig({ properties, onRefresh }) {
   return (
     <div style={{ display: 'flex', gap: 20 }} className="two-col">
       <div style={{ flex: 1 }}>
-  {alert && <div className={`alert alert-${alert.type}`}>{alert.msg}</div>}
+        {alert && <div className={`alert alert-${alert.type}`}>{alert.msg}</div>}
 
-  {!editId && !showNewForm ? (
-    <button className="btn-primary btn btn-full" onClick={() => setShowNewForm(true)} style={{ marginBottom: 16 }}>
-      + Nueva Propiedad
-    </button>
-  ) : (
-    <div className="card">
-      <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 16 }}>{editId ? '✏️ Editar Propiedad' : '🏠 Nueva Propiedad'}</div>
-      <div className="fgroup" style={{ marginBottom: 10 }}><label>ID Propiedad</label><input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Ej: Depto 101" /></div>
-      <div className="fgroup" style={{ marginBottom: 10 }}><label>Dirección completa</label><input value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} /></div>
-      <div className="fgroup" style={{ marginBottom: 10 }}><label>Nombre del Inquilino</label><input value={form.tenant} onChange={e => setForm(f => ({ ...f, tenant: e.target.value }))} /></div>
-      <div className="fgroup" style={{ marginBottom: 10 }}><label>Teléfono (con código de país)</label><input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="521551234567" /></div>
-      <div className="grid2" style={{ marginBottom: 10 }}>
-        <div className="fgroup"><label>Renta Mensual ($)</label><input type="number" min="0" step="500" value={form.rent} onChange={e => setForm(f => ({ ...f, rent: e.target.value }))} /></div>
-        <div className="fgroup"><label>Día límite de pago</label><input type="number" min="1" max="31" value={form.pay_day} onChange={e => setForm(f => ({ ...f, pay_day: e.target.value }))} /></div>
+        {!editId && !showNewForm ? (
+          <button className="btn-primary btn btn-full" onClick={() => setShowNewForm(true)} style={{ marginBottom: 16 }}>
+            + Nueva Propiedad
+          </button>
+        ) : (
+          <div className="card">
+            <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 16 }}>{editId ? '✏️ Editar Propiedad' : '🏠 Nueva Propiedad'}</div>
+            <div className="fgroup" style={{ marginBottom: 10 }}><label>ID Propiedad</label><input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Ej: Depto 101" /></div>
+            <div className="fgroup" style={{ marginBottom: 10 }}><label>Dirección completa</label><input value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} /></div>
+            <div className="fgroup" style={{ marginBottom: 10 }}><label>Nombre del Inquilino</label><input value={form.tenant} onChange={e => setForm(f => ({ ...f, tenant: e.target.value }))} /></div>
+            <div className="fgroup" style={{ marginBottom: 10 }}><label>Teléfono (con código de país)</label><input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="521551234567" /></div>
+            <div className="grid2" style={{ marginBottom: 10 }}>
+              <div className="fgroup"><label>Renta Mensual ($)</label><input type="number" min="0" step="500" value={form.rent} onChange={e => setForm(f => ({ ...f, rent: e.target.value }))} /></div>
+              <div className="fgroup"><label>Día límite de pago</label><input type="number" min="1" max="31" value={form.pay_day} onChange={e => setForm(f => ({ ...f, pay_day: e.target.value }))} /></div>
+            </div>
+            <div className="fgroup" style={{ marginBottom: 16 }}><label>Servicios (separados por coma: Luz, Agua, Gas)</label><textarea value={form.services} onChange={e => setForm(f => ({ ...f, services: e.target.value }))} placeholder="Luz, Agua, Gas" style={{ minHeight: 48 }} /></div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn" onClick={reset}>Cancelar</button>
+              <button className="btn-primary btn btn-full" onClick={save} disabled={saving}>{saving ? 'Guardando...' : editId ? 'Guardar cambios' : 'Dar de Alta'}</button>
+            </div>
+          </div>
+        )}
       </div>
-      <div className="fgroup" style={{ marginBottom: 16 }}><label>Servicios (separados por coma: Luz, Agua, Gas)</label><textarea value={form.services} onChange={e => setForm(f => ({ ...f, services: e.target.value }))} placeholder="Luz, Agua, Gas" style={{ minHeight: 48 }} /></div>
-      <div style={{ display: 'flex', gap: 8 }}>
-        <button className="btn" onClick={reset}>Cancelar</button>
-        <button className="btn-primary btn btn-full" onClick={save} disabled={saving}>{saving ? 'Guardando...' : editId ? 'Guardar cambios' : 'Dar de Alta'}</button>
-      </div>
-    </div>
-  )}
-</div>
 
       <div style={{ flex: 2 }}>
         <div className="card">
@@ -612,157 +957,6 @@ function TabConfig({ properties, onRefresh }) {
           )}
         </div>
       </div>
-    </div>
-  )
-}
-
-// ─── TAB 3: HISTORIAL ────────────────────────────────────────────────────────
-function TabHistorial({ properties, charges, onRefresh }) {
-  const [propFilter, setPropFilter] = useState('')
-  const [yearFilter, setYearFilter] = useState(String(CUR_YEAR))
-  const [editCharge, setEditCharge] = useState(null)
-  const [editForm, setEditForm] = useState({})
-  const [saving, setSaving] = useState(false)
-  const [alert, setAlert] = useState(null)
-
-  function showAlert(msg, type = 'success') { setAlert({ msg, type }); setTimeout(() => setAlert(null), 3500) }
-
-  const years = [...new Set([CUR_YEAR, ...charges.map(c => c.year)])].sort((a, b) => b - a)
-  const filtered = charges
-    .filter(c => c.year === parseInt(yearFilter) && (!propFilter || c.property_id === propFilter))
-    .sort((a, b) => MONTHS.indexOf(b.month) - MONTHS.indexOf(a.month))
-
-  const totalRent = filtered.reduce((a, c) => a + c.rent, 0)
-  const totalSvcs = filtered.reduce((a, c) => a + Object.values(c.services || {}).reduce((x, y) => x + y, 0), 0)
-  const totalAll = filtered.reduce((a, c) => a + c.total, 0)
-  const totalPaid = filtered.filter(c => c.status === 'paid').reduce((a, c) => a + c.total, 0)
-
-  function openEdit(c) {
-    setEditCharge(c)
-    setEditForm({ rent: c.rent, note: c.note || '', status: c.status, services: { ...c.services } })
-  }
-
-  async function saveEdit() {
-    const total = parseFloat(editForm.rent || 0) + Object.values(editForm.services || {}).reduce((a, b) => a + parseFloat(b || 0), 0)
-    setSaving(true)
-    const { error } = await supabase.from('charges').update({
-      rent: parseFloat(editForm.rent || 0),
-      services: Object.fromEntries(Object.entries(editForm.services || {}).map(([k, v]) => [k, parseFloat(v || 0)])),
-      total, note: editForm.note, status: editForm.status,
-      paid_on: editForm.status === 'paid' ? (editCharge.paid_on || new Date().toISOString()) : null
-    }).eq('id', editCharge.id)
-    setSaving(false)
-    if (error) { showAlert('Error al guardar', 'error'); return }
-    showAlert('✅ Cobro actualizado'); setEditCharge(null); onRefresh()
-  }
-
-  async function delCharge(id) {
-    if (!confirm('¿Eliminar este cobro?')) return
-    const { error } = await supabase.from('charges').delete().eq('id', id)
-    if (error) { showAlert('Error', 'error'); return }
-    showAlert('Eliminado'); onRefresh()
-  }
-
-  return (
-    <div>
-      {alert && <div className={`alert alert-${alert.type}`}>{alert.msg}</div>}
-      <div style={{ fontWeight: 600, fontSize: 16, marginBottom: 16 }}>📊 Historial de Pagos</div>
-
-      <div className="grid4" style={{ marginBottom: 20 }}>
-        <div className="metric"><div className="mlabel">Total renta</div><div className="mval">{fmt(totalRent)}</div></div>
-        <div className="metric"><div className="mlabel">Servicios</div><div className="mval">{fmt(totalSvcs)}</div><div className="msub">reembolsables</div></div>
-        <div className="metric"><div className="mlabel">Total cobrado</div><div className="mval">{fmt(totalAll)}</div></div>
-        <div className="metric"><div className="mlabel">Recibido</div><div className="mval" style={{ color: 'var(--green-text)' }}>{fmt(totalPaid)}</div></div>
-      </div>
-
-      <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
-        <div className="fgroup" style={{ flex: 1, minWidth: 180 }}>
-          <label>Filtrar por Propiedad:</label>
-          <select value={propFilter} onChange={e => setPropFilter(e.target.value)}>
-            <option value="">Todas</option>
-            {properties.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </select>
-        </div>
-        <div className="fgroup" style={{ width: 100 }}>
-          <label>Año:</label>
-          <select value={yearFilter} onChange={e => setYearFilter(e.target.value)}>
-            {years.map(y => <option key={y}>{y}</option>)}
-          </select>
-        </div>
-      </div>
-
-      <div className="card" style={{ overflowX: 'auto' }}>
-        <table>
-          <thead>
-            <tr>
-              {['Mes','Propiedad','Inquilino','Renta','Servicios','Total','Estado','Comprobante',''].map(h => <th key={h}>{h}</th>)}
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.length === 0 && <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--text2)', padding: '2rem' }}>Sin cobros para este período.</td></tr>}
-            {filtered.map(c => {
-              const p = properties.find(x => x.id === c.property_id)
-              const svcsStr = Object.entries(c.services || {}).filter(([,v]) => v > 0).map(([k, v]) => `${k}: ${fmt(v)}`).join(', ') || '—'
-              return (
-                <tr key={c.id}>
-                  <td>{monthES(c.month)} {c.year}</td>
-                  <td>{p?.name || '—'}</td>
-                  <td style={{ color: 'var(--text2)' }}>{p?.tenant || '—'}</td>
-                  <td>{fmt(c.rent)}</td>
-                  <td style={{ fontSize: 12, color: 'var(--text2)' }}>{svcsStr}</td>
-                  <td style={{ fontWeight: 600 }}>{fmt(c.total)}</td>
-                  <td><span className={`badge badge-${c.status}`}>{c.status === 'paid' ? 'Pagado' : 'Pendiente'}</span></td>
-                  <td>{c.receipt_url ? <a href={c.receipt_url} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)', fontSize: 12 }}>Ver</a> : <span style={{ color: 'var(--border)' }}>—</span>}</td>
-                  <td>
-                    <div style={{ display: 'flex', gap: 4 }}>
-                      <button className="btn btn-sm" onClick={() => openEdit(c)} style={{ color: 'var(--accent)', borderColor: 'var(--accent)', padding: '3px 8px' }}>✏️</button>
-                      <button className="btn btn-danger btn-sm" onClick={() => delCharge(c.id)} style={{ padding: '3px 8px' }}>🗑️</button>
-                    </div>
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
-
-      {editCharge && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '1rem' }}
-          onClick={e => e.target === e.currentTarget && setEditCharge(null)}>
-          <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 16, width: '100%', maxWidth: 480, padding: '1.5rem', maxHeight: '90vh', overflowY: 'auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <div style={{ fontWeight: 600, fontSize: 16 }}>✏️ Editar — {monthES(editCharge.month)} {editCharge.year}</div>
-              <button className="btn btn-sm" onClick={() => setEditCharge(null)}>Cerrar</button>
-            </div>
-            <div className="grid2" style={{ marginBottom: 12 }}>
-              <div className="fgroup"><label>Renta ($)</label><input type="number" value={editForm.rent} onChange={e => setEditForm(f => ({ ...f, rent: e.target.value }))} /></div>
-              <div className="fgroup"><label>Estado</label>
-                <select value={editForm.status} onChange={e => setEditForm(f => ({ ...f, status: e.target.value }))}>
-                  <option value="pending">Pendiente</option>
-                  <option value="paid">Pagado</option>
-                </select>
-              </div>
-            </div>
-            {Object.keys(editForm.services || {}).length > 0 && (
-              <div style={{ marginBottom: 12 }}>
-                <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 8 }}>Servicios:</div>
-                <div className="grid2">
-                  {Object.entries(editForm.services).map(([k, v]) => (
-                    <div key={k} className="fgroup"><label>{k} ($)</label>
-                      <input type="number" value={v} onChange={e => setEditForm(f => ({ ...f, services: { ...f.services, [k]: e.target.value } }))} />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-            <div className="fgroup" style={{ marginBottom: 16 }}><label>Nota</label><textarea value={editForm.note} onChange={e => setEditForm(f => ({ ...f, note: e.target.value }))} /></div>
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button className="btn" onClick={() => setEditCharge(null)}>Cancelar</button>
-              <button className="btn-primary btn" onClick={saveEdit} disabled={saving}>{saving ? 'Guardando...' : 'Guardar cambios'}</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
@@ -808,7 +1002,7 @@ function TenantView({ propId, properties, charges }) {
                 <span className="badge badge-pending">Pendiente</span>
               </div>
               {c.rent > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '2px 0' }}><span style={{ color: 'var(--text2)' }}>🏠 Renta</span><span>{fmt(c.rent)}</span></div>}
-              {Object.entries(c.services || {}).filter(([,v]) => v > 0).map(([k, v]) => (
+              {Object.entries(c.services || {}).filter(([, v]) => v > 0).map(([k, v]) => (
                 <div key={k} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '2px 0' }}><span style={{ color: 'var(--text2)' }}>📄 {k}</span><span>{fmt(v)}</span></div>
               ))}
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, fontWeight: 700, borderTop: '1px solid var(--border)', marginTop: 6, paddingTop: 6 }}><span>Total</span><span>{fmt(c.total)}</span></div>
